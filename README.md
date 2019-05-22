@@ -2,8 +2,8 @@
 
 Skeletonization algorithms implemented in C++
 
-[x] Thinning
-[ ] Potential Fields
+- [x] Thinning
+- [ ] Potential Fields
 
 To compile:
 
