@@ -12,7 +12,9 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-#define POWER 1.69 
+#define POWER 1.7
+#define ON 255
+#define OFF 0
 
 typedef cv::Mat Img;
 typedef std::vector<std::vector<int>> intMatrix;
@@ -158,13 +160,12 @@ double distance(cv::Point a, cv::Point b){
 	return sqrt(pow(a.x-b.x,2)+ pow(a.y-b.y,2));
 }
 
-bool colorNeighbors(std::pair<int,int> point,intMatrix&matrix, doubleMatrix forces){
-	if(forces[point.first][point.second]<5){	
-		double auxForce = 0;
-		
-		for(int i=point.first-1;i<point.first+1;++i){
-			fstd::pair<int,int> closestNeighbor;
-			for(int j=point.second;j<point.second;++j){
+bool colorNeighbors(std::pair<int,int> &point, intMatrix &matrix, doubleMatrix forces){
+    if(forces[point.first][point.second]==0){
+        double auxForce = 0;
+        std::pair<int,int> closestNeighbor;
+        for(int i=point.first-1;i<=point.first+1;++i){
+            for(int j=point.second;j<=point.second;++j){
 				if(forces[i][j]<auxForce){
 					auxForce = forces[i][j];
 					closestNeighbor.first = i; closestNeighbor.second = j;
@@ -181,11 +182,8 @@ bool colorNeighbors(std::pair<int,int> point,intMatrix&matrix, doubleMatrix forc
 Img Skeleton(doubleMatrix forces){
 	Coordinates criticalPxls = criticalPixels(forces);
 	intMatrix skeletonMatrix(forces.size(), std::vector<int>(forces[0].size(), 0));
-	//std::vector<cv::Point> pointVector;
 	for(auto&i:criticalPxls){
 		skeletonMatrix[i.first][i.second]=255;
-	//	cv::Point point(i.first,i.second);
-	//	pointVector.push_back(point);
 	}	
 	
 	for(auto i:criticalPxls){
@@ -194,6 +192,102 @@ Img Skeleton(doubleMatrix forces){
 
 	Img skeleton = createImage(skeletonMatrix);
 	return skeleton;
+}
+
+Coordinates neighbs(int i, int j, intMatrix matrix){
+	Coordinates neighbors;
+	std::pair<int,int> point2(i-1,j);
+	neighbors.push_back(point2);
+	std::pair<int,int> point3(i-1,j+1);
+	neighbors.push_back(point3);
+	std::pair<int,int> point4(i,j+1);
+	neighbors.push_back(point4);
+	std::pair<int,int> point5(i+1,j+1);
+	neighbors.push_back(point5);
+	std::pair<int,int> point6(i+1,j);
+	neighbors.push_back(point6);
+	std::pair<int,int> point7(i+1,j-1);
+	neighbors.push_back(point7);
+	std::pair<int,int> point8(i,j-1);
+	neighbors.push_back(point8);
+	std::pair<int,int> point9(i-1,j-1);
+	neighbors.push_back(point9);
+	return neighbors;
+}
+
+int sumOfCoordinates(Coordinates coords, intMatrix matrix){
+	int n=0;
+	for(auto i:coords)
+		n++;
+	return n;
+}
+
+bool secondCondition(Coordinates coords, intMatrix matrix){
+	return matrix[coords[0].first][coords[0].second]*matrix[coords[2].first][coords[2].second]*matrix[coords[4].first][coords[4].second];
+}
+
+bool thirdCondition(Coordinates coords, intMatrix matrix){
+	return matrix[coords[2].first][coords[2].second]*matrix[coords[4].first][coords[4].second]*matrix[coords[6].first][coords[6].second];
+}
+
+bool SecCondition(Coordinates coords, intMatrix matrix){
+	return (matrix[coords[0].first][coords[0].second]*matrix[coords[2].first][coords[2].second]*matrix[coords[6].first][coords[6].second]) and (matrix[coords[0].first][coords[0].second]*matrix[coords[4].first][coords[4].second]*matrix[coords[6].first][coords[6].second]);
+}
+
+int orderedPatterns(Coordinates coords, intMatrix matrix){
+	int n=0;
+	for(int i=0;i<coords.size()-1;++i){
+		//Iterate over next neighbor
+		if(matrix[coords[i].first][coords[i].second]==0 and matrix[coords[i+1].first][coords[i+1].second]==1)
+			++n;
+	}
+	return n;
+}
+
+Img thinning(intMatrix matrix){
+	Coordinates firstIterationCoords={}, secondIterationCoords={};
+
+	for(auto & i : matrix){
+	    for(int & j : i){
+	        if(j==0) j = ON;
+	        else j = OFF;
+	    }
+	}
+    for(auto&i: internalPixels)
+        matrix[i.first][i.second] = ON;
+
+	do{
+		firstIterationCoords = secondIterationCoords = {};
+		for(int i=1;i<matrix.size()-2;++i){
+			for(int j=1;j<matrix[i].size()-2;++j){
+				Coordinates neighbors = neighbs(i,j,matrix);
+				if(matrix[i][j]==ON and orderedPatterns(neighbors, matrix)==1 and
+				sumOfCoordinates(neighbors,matrix)>=2 and sumOfCoordinates(neighbors, matrix)<=6
+				and secondCondition(neighbors, matrix) and thirdCondition(neighbors,matrix)){
+					std::pair<int, int> pixel(i,j);
+					firstIterationCoords.push_back(pixel);
+				}
+			}
+		}
+		for(auto i:firstIterationCoords)
+				matrix[i.first][i.second]=OFF;
+		for(int i=1;i<matrix.size()-2;++i){
+			for(int j=0;j<matrix[i].size()-2;++j){
+				Coordinates neighbors = neighbs(i,j,matrix);
+				if(matrix[i][j]==ON and orderedPatterns(neighbors, matrix)==1 and
+				sumOfCoordinates(neighbors,matrix)>=2*ON and sumOfCoordinates(neighbors, matrix)<=6*ON
+			and SecCondition(neighbors, matrix)){
+					std::pair<int, int> pixel(i,j);
+					firstIterationCoords.push_back(pixel);
+				}
+			}
+
+		}
+		for(auto i:secondIterationCoords)
+			matrix[i.first][i.second] = OFF;
+	}while(!firstIterationCoords.empty() or !secondIterationCoords.empty());
+	Img thinnedImage = createImage(matrix);
+	return thinnedImage;
 }
 
 void writeImage(Img image, std::string filename){
