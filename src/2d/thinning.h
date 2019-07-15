@@ -1,5 +1,11 @@
+#include <thread>
+#include <mutex>
+
 #define ON 255
 #define OFF 0
+#define NUMBER_OF_THREADS 4
+
+/* ------ Thinning Algorithms ------ */
 
 intMatrix invertColors(intMatrix&imgMatrix){
 	intMatrix invertedColorsMatrix = imgMatrix;
@@ -92,7 +98,7 @@ bool secondIterationConditions(int &i, int &j, intVector &neighbors, intMatrix &
     return false;
 }
 
-Img thinning(intMatrix matrix){
+Img thinning(intMatrix &matrix){
 	Coordinates firstIterationCoords={}, secondIterationCoords={};
 	do{
 		firstIterationCoords = secondIterationCoords = {};
@@ -126,4 +132,61 @@ Img thinning(intMatrix matrix){
 	
 	Img thinnedImage = createImage(matrix);
 	return thinnedImage;
+}
+
+void parallelThinning(intMatrix &matrix, int threadNumber){
+	
+	const int nElements = matrix.size()* matrix[0].size();
+	const int nOperations = nElements/NUMBER_OF_THREADS;
+	const int restOperations = nElements%NUMBER_OF_THREADS;
+	
+	const int width = matrix.size(), height = matrix[0].size();
+
+	int startOp, endOp;
+
+	if(threadNumber==0){
+		startOp = nOperations * threadNumber;
+		endOp = (nOperations * (threadNumber + 1)) + restOperations;
+ 	 }
+
+  	else {
+    		startOp = nOperations * threadNumber + restOperations;
+	    	endOp = (nOperations * (threadNumber + 1)) + restOperations;
+	}
+	
+	std::cout<<threadNumber<<' '<<startOp;
+	Coordinates firstIterationCoords={}, secondIterationCoords={};
+	do{
+		firstIterationCoords = secondIterationCoords = {};
+		for(int op=startOp;op<endOp;++op){	
+			int i = op / height;
+			int j = op - i * width;
+			if(i>0 and i<height and j>0 and j<width){
+				intVector neighbors = getNeighbors(i,j,matrix);
+				if(firstIterationConditions(i, j, neighbors, matrix)){
+					std::pair<int, int> point(i,j);
+					firstIterationCoords.push_back(point);
+				}
+			}
+		}
+		
+		for(auto i:firstIterationCoords)
+			matrix[i.first][i.second] = OFF;
+
+		for(int op=startOp;op<endOp;++op){
+			int i = op / height;
+			int j = op - i* width;
+			if(i>0 and i<height and j>0 and j<width){
+				intVector neighbors = getNeighbors(i,j,matrix);
+				if(secondIterationConditions(i,j, neighbors, matrix)){
+					std::pair<int, int> point(i,j);
+					secondIterationCoords.push_back(point);
+				}
+			}
+		}
+
+		for(auto i:secondIterationCoords)
+			matrix[i.first][i.second] = OFF;
+
+	}while(!firstIterationCoords.empty() or !secondIterationCoords.empty());
 }

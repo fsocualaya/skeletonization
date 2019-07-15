@@ -1,67 +1,61 @@
 #include "2d/timer.h"
+//#include "2d/thinning.h"
 
 #define POTENTIAL_FIELDS 0
+#define PARALLEL 0 
 
 int main(){
-	//Loads Image
-	Img image = loadImage("../resources/kimia99-images/donkey1.png");
-	int originalArea = image.rows*image.cols;
 
-	//Get binary Matrix based on image
+	std::string filename;
+	std::cin>>filename;
+
+	Img image = loadImage(filename);
+	
 	intMatrix imgMat = getBinMat(image);
+	
 	if(POTENTIAL_FIELDS){
+		imgMat = getBinMatBounds(imgMat);
+
+		doubleMatrix xForcesMatrix = potentialXMatrix(imgMat);
 	
-	//Get boundaries of image 
-	imgMat = getBinMatBounds(imgMat);
+		doubleMatrix yForcesMatrix = potentialYMatrix(imgMat);
 
-	//Get potential for every internal point
-	//Forces in X
-	doubleMatrix xForcesMatrix = potentialXMatrix(imgMat);
-	//Forces in Y
-	doubleMatrix yForcesMatrix = potentialYMatrix(imgMat);
-
-	doubleMatrix resultantForces = resultantForceMatrix(xForcesMatrix, yForcesMatrix);
+		doubleMatrix resultantForces = resultantForceMatrix(xForcesMatrix, yForcesMatrix);
 	
-	//writeFile(resultantForces, "data2.csv");
+		plotDoubleMatDots(resultantForces);
+	
+		Img skeleton = potentialFields(resultantForces);
 
-	plotDoubleMatDots(resultantForces);
+		cv::imshow("out", skeleton);
+		cv::imshow("original", image);
 
-	Img skeleton = potentialFields(resultantForces);
+		writeImage(skeleton, filename);
 
-	cv::imshow("out", skeleton);
-	cv::imshow("original", image);
-
-	writeImage(skeleton, "cowSkeleton.png");
-
-	cv::waitKey(0);
-
-	//	plotDoubleMatDots(xForcesMatrix);
-	//	plotDoubleMatDots(yForcesMatrix);
-
-
-	//cv::imshow("original", image);
-	//Img outputImg = createImage(imgMat);
-	//writeImage(outputImg,"outputImg.png");
-	//cv::imshow("new", outputImg);
-	//cv::waitKey(0);
-	}
-	else{	
-		Img thinned, auxImage;
-		std::fstream executionTimes("../results/thinning/runtime/thinningExecutionTime.csv", std::ios::out);
-		executionTimes<<"imageArea,executionTime\n";
-		for(double Scale=0.5;Scale<=2.0;Scale+=0.25){
-			std::cout<<Scale<<'\n';
-			cv::resize(image,auxImage,cv::Size(),Scale,Scale);
-			for(int j=0;j<3;++j){
-				double duration = thinningExecutionTime(auxImage,thinned);
-				executionTimes<<originalArea*pow(Scale,2)<<','<<duration<<'\n';
-			}
-		}
-		executionTimes.close();
-		writeImage(thinned, "../results/thinning/imgs/skeleton_donkey1.png");
-		cv::imshow("original", auxImage);
-		cv::imshow("Thinned", thinned);
 		cv::waitKey(0);
 	}
+
+	if(PARALLEL){
+
+		imgMat = invertColors(imgMat);
+		std::thread threads[NUMBER_OF_THREADS];
+		for(int i=0;i<NUMBER_OF_THREADS;++i){
+			threads[i] = std::thread(parallelThinning, std::ref(imgMat), i);
+		}
+		for(int i=0;i<NUMBER_OF_THREADS;++i){
+			threads[i].join();
+		}
+		Img skeleton = createImage(imgMat);
+		displayImage(image,skeleton);
+	}
+
+	else{	
+		imgMat = invertColors(imgMat);
+		Img skeleton = thinning(imgMat);
+
+		displayImage(image, skeleton);	
+	
+		writeImage(skeleton, filename);	
+	}
+	
 	return 0;
 }

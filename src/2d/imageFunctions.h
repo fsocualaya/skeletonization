@@ -25,10 +25,11 @@ double max = std::numeric_limits<double>::max();
 Coordinates internalPixels, boundaryPixels;
 
 Img loadImage(std::string filename){
-	Img image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+	std::string path = "../../resources/kimia99-images/"+ filename;
+	Img image = cv::imread(path, cv::IMREAD_GRAYSCALE);
 	if(!image.data) {
-        std::cout << "No se logró abrir la imagen\n";
-        exit (EXIT_FAILURE);
+        	std::cout << "No se logró abrir la imagen\n";
+        	exit (EXIT_FAILURE);
 	}
 	else
 		return image;
@@ -78,13 +79,40 @@ Img createImage(intMatrix &matrix){
 	return image;
 }
 
+void displayImage(Img originalImage, Img skeleton){
+	char* window_name = "Skeletonization";
+
+	int scale = 2;
+	
+	cv::resize(originalImage, originalImage, cv::Size(),scale,scale);
+	cv::resize(skeleton, skeleton, cv::Size(),scale,scale);
+
+	int width = originalImage.cols, height = originalImage.rows;
+
+	Img windowImg(cv::Size(width*2,height),CV_8UC1,cv::Scalar::all(0));
+
+	originalImage.copyTo(windowImg(cv::Rect(0,0,width,height)));
+	skeleton.copyTo(windowImg(cv::Rect(width,0,width,height)));
+	
+	cv::putText(windowImg, "Original", cv::Point(5,height-10), cv::FONT_HERSHEY_DUPLEX,
+		0.4, cv::Scalar(0),1.5);
+
+	cv::putText(windowImg, "Skeleton", cv::Point(width+5,height-10), cv::FONT_HERSHEY_DUPLEX,
+		0.4, cv::Scalar(255),1.5);
+
+	cv::namedWindow(window_name, cv::WINDOW_NORMAL);
+	
+	cv::imshow(window_name, windowImg);
+	cv::waitKey(0);
+}
+
 void writeImage(const Img& image, std::string filename){
-	std::string path = "../results/"+filename;
+	std::string path = "../results/thinning/imgs/skeleton_"+filename;
 	cv::imwrite(path, image);
 }
 
 void writeFile(doubleMatrix& matrix, std::string filename){
-	std::string path = "../results/"+filename;
+	std::string path = "../results/thinning/runtime/"+filename;
 	std::fstream output(path,std::ios::out);
 	for(auto & i : matrix){
 		for(int j=0;j<i.size();++j){

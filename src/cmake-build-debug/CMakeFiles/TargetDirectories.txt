@@ -1,0 +1,3 @@
+/home/notpyxl/UTEC/undergraduate/5th/ADA/project/1_partial/skeletonization/src/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/notpyxl/UTEC/undergraduate/5th/ADA/project/1_partial/skeletonization/src/cmake-build-debug/CMakeFiles/skeletonization.dir
+/home/notpyxl/UTEC/undergraduate/5th/ADA/project/1_partial/skeletonization/src/cmake-build-debug/CMakeFiles/edit_cache.dir
